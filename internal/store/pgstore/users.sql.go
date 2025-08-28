@@ -53,29 +53,20 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 	return i, err
 }
 
-const deleteUser = `-- name: DeleteUser :exec
-DELETE FROM users
-WHERE id = $1
-`
-
-func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteUser, id)
-	return err
-}
-
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, user_name, email, bio, created_at, updated_at
+SELECT id, user_name, password_hash, email, bio, created_at, updated_at
 FROM users
 WHERE email = $1
 `
 
 type GetUserByEmailRow struct {
-	ID        uuid.UUID          `json:"id"`
-	UserName  string             `json:"user_name"`
-	Email     string             `json:"email"`
-	Bio       string             `json:"bio"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID           uuid.UUID          `json:"id"`
+	UserName     string             `json:"user_name"`
+	PasswordHash []byte             `json:"password_hash"`
+	Email        string             `json:"email"`
+	Bio          string             `json:"bio"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
@@ -84,6 +75,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 	err := row.Scan(
 		&i.ID,
 		&i.UserName,
+		&i.PasswordHash,
 		&i.Email,
 		&i.Bio,
 		&i.CreatedAt,
@@ -93,18 +85,19 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, user_name, email, bio, created_at, updated_at
+SELECT id, user_name, password_hash, email, bio, created_at, updated_at
 FROM users
 WHERE id = $1
 `
 
 type GetUserByIDRow struct {
-	ID        uuid.UUID          `json:"id"`
-	UserName  string             `json:"user_name"`
-	Email     string             `json:"email"`
-	Bio       string             `json:"bio"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID           uuid.UUID          `json:"id"`
+	UserName     string             `json:"user_name"`
+	PasswordHash []byte             `json:"password_hash"`
+	Email        string             `json:"email"`
+	Bio          string             `json:"bio"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error) {
@@ -113,99 +106,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserName,
-		&i.Email,
-		&i.Bio,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const listUsers = `-- name: ListUsers :many
-SELECT id, user_name, email, bio, created_at, updated_at
-FROM users
-ORDER BY created_at DESC
-LIMIT $1 OFFSET $2
-`
-
-type ListUsersParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
-}
-
-type ListUsersRow struct {
-	ID        uuid.UUID          `json:"id"`
-	UserName  string             `json:"user_name"`
-	Email     string             `json:"email"`
-	Bio       string             `json:"bio"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-}
-
-func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
-	rows, err := q.db.Query(ctx, listUsers, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListUsersRow
-	for rows.Next() {
-		var i ListUsersRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserName,
-			&i.Email,
-			&i.Bio,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const updateUser = `-- name: UpdateUser :one
-UPDATE users
-SET user_name = COALESCE($2, user_name),
-    email = COALESCE($3, email),
-    bio = COALESCE($4, bio),
-    updated_at = now()
-WHERE id = $1
-RETURNING id, user_name, email, bio, created_at, updated_at
-`
-
-type UpdateUserParams struct {
-	ID       uuid.UUID `json:"id"`
-	UserName string    `json:"user_name"`
-	Email    string    `json:"email"`
-	Bio      string    `json:"bio"`
-}
-
-type UpdateUserRow struct {
-	ID        uuid.UUID          `json:"id"`
-	UserName  string             `json:"user_name"`
-	Email     string             `json:"email"`
-	Bio       string             `json:"bio"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-}
-
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error) {
-	row := q.db.QueryRow(ctx, updateUser,
-		arg.ID,
-		arg.UserName,
-		arg.Email,
-		arg.Bio,
-	)
-	var i UpdateUserRow
-	err := row.Scan(
-		&i.ID,
-		&i.UserName,
+		&i.PasswordHash,
 		&i.Email,
 		&i.Bio,
 		&i.CreatedAt,

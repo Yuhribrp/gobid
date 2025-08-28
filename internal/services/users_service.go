@@ -4,30 +4,36 @@ import (
 	"context"
 	"errors"
 
-	"github.com/Yuhribrp/gobid/internal/store/pgstore"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/Yuhribrp/gobid/internal/store/pgstore"
 )
 
-
-var ErrDuplicatedEmailOrPassword = errors.New("user with this email or username already exists")
+var (
+	ErrDuplicatedEmailOrUsername = errors.New("user with this email or username already exists")
+	ErrInvalidCredentials        = errors.New("invalid credentials")
+)
 
 type UserService struct {
-	pool *pgxpool.Pool
+	pool    *pgxpool.Pool
 	queries *pgstore.Queries
 }
 
-
 func NewUserService(pool *pgxpool.Pool) UserService {
 	return UserService{
-		pool: pool,
+		pool:    pool,
 		queries: pgstore.New(pool),
 	}
 }
 
-func (us *UserService) CreateUser(ctx context.Context, userName, email, password, bio string) (uuid.UUID, error) {
+func (us *UserService) CreateUser(
+	ctx context.Context,
+	userName, email, password, bio string,
+) (uuid.UUID, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return uuid.Nil, err
@@ -44,7 +50,7 @@ func (us *UserService) CreateUser(ctx context.Context, userName, email, password
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return uuid.Nil, ErrDuplicatedEmailOrPassword
+			return uuid.Nil, ErrDuplicatedEmailOrUsername
 		}
 		return uuid.Nil, err
 	}
@@ -52,11 +58,26 @@ func (us *UserService) CreateUser(ctx context.Context, userName, email, password
 	return id.ID, nil
 }
 
-func (us *UserService) DeleteUser(ctx context.Context, userID uuid.UUID) error {
-	return us.queries.DeleteUser(ctx, userID)
-}
+func (us *UserService) AuthenticateUser(
+	ctx context.Context,
+	email string,
+	password string,
+) (uuid.UUID, error) {
+	user, err := us.queries.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return uuid.Nil, ErrInvalidCredentials
+		}
+		return uuid.Nil, err
+	}
 
-func (us *UserService) AuthenticateUser(ctx context.Context, username string, password string) (bool, error) {
-	// Implement user authentication logic here
-	return true, nil
+	err = bcrypt.CompareHashAndPassword(user.PasswordHash, []byte(password))
+	if err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return uuid.Nil, ErrInvalidCredentials
+		}
+		return uuid.Nil, err
+	}
+
+	return user.ID, nil
 }
