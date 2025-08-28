@@ -1,15 +1,37 @@
 package api
 
-import "net/http"
+import (
+	"errors"
+	"net/http"
+
+	"github.com/Yuhribrp/gobid/internal/jsonutils"
+	"github.com/Yuhribrp/gobid/internal/services"
+	"github.com/Yuhribrp/gobid/internal/usecase/user"
+)
 
 func (api *Api) handleSignupUser(w http.ResponseWriter, r *http.Request) {
-	panic("not implemented") // TODO: Implement
-}
+	data, problems, err := jsonutils.DecodeValidJson[user.CreateUserReq](r)
+	if err != nil {
+		_ = jsonutils.EncodeJson(w, r, http.StatusUnprocessableEntity, problems)
+		return
+	}
 
-func (api *Api) handleLoginUser(w http.ResponseWriter, r *http.Request) {
-	panic("not implemented") // TODO: Implement
-}
+	id, err := api.UserService.CreateUser(r.Context(),
+		data.UserName,
+		data.Email,
+		data.Password,
+		data.Bio,
+	)
+	if err != nil {
+		if errors.Is(err, services.ErrDuplicatedEmailOrPassword) {
+			_ = jsonutils.EncodeJson(w, r, http.StatusUnprocessableEntity, map[string]any{
+				"error": "email or username already in use",
+			})
+			return
+		}
+	}
 
-func (api *Api) handleLogoutUser(w http.ResponseWriter, r *http.Request) {
-	panic("not implemented") // TODO: Implement
+	_ = jsonutils.EncodeJson(w, r, http.StatusUnprocessableEntity, map[string]any{
+		"id": id,
+	})
 }
