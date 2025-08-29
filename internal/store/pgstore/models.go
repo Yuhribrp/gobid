@@ -10,6 +10,14 @@ import (
 	"github.com/google/uuid"
 )
 
+type Bid struct {
+	ID        uuid.UUID `json:"id"`
+	ProductID uuid.UUID `json:"product_id"`
+	BidderID  uuid.UUID `json:"bidder_id"`
+	CreateAt  time.Time `json:"create_at"`
+	BidAmount float64   `json:"bid_amount"`
+}
+
 type Product struct {
 	ID          uuid.UUID `json:"id"`
 	SellerID    uuid.UUID `json:"seller_id"`
