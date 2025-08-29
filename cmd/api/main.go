@@ -52,6 +52,7 @@ func main() {
 	api := api.Api{
 		Router:      chi.NewMux(),
 		UserService: services.NewUserService(pool),
+		ProductService: services.NewProductsService(pool),
 		Sessions:    s,
 	}
 
