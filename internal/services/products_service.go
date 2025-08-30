@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/Yuhribrp/gobid/internal/services"
 	"github.com/Yuhribrp/gobid/internal/store/pgstore"
 )
 
@@ -44,10 +43,10 @@ func (ps *ProductsService) CreateProduct(
 		return uuid.UUID{}, err
 	}
 
-	auctionRoom := services.NewAuctionRoom(ctx, id, services.NewBidsService(ps.pool))
-	go auctionRoom.Run()
+	// auctionRoom := services.NewAuctionRoom(ctx, id, services.NewBidsService(ps.pool))
+	// go auctionRoom.Run()
 
-	ps.pool.Exec(ctx, "INSERT INTO auction_rooms (id) VALUES ($1)", id)
+	// ps.pool.Exec(ctx, "INSERT INTO auction_rooms (id) VALUES ($1)", id)
 
 	return id, nil
 }

@@ -45,12 +45,11 @@ func (api *Api) handleCreateProduct(w http.ResponseWriter, r *http.Request) {
 
 	auctionRoom := services.NewAuctionRoom(ctx, productId, api.BidsService)
 
-	// go auctionRoom.Run()
+	go auctionRoom.Run()
 
 	api.AuctionLobby.Lock()
 	api.AuctionLobby.Rooms[productId] = auctionRoom
 	api.AuctionLobby.Unlock()
-
 
 	_ = jsonutils.EncodeJson(w, r, http.StatusCreated, map[string]any{
 		"message":    "Auction has started with success",
